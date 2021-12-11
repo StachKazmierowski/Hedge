@@ -179,20 +179,6 @@ def recurrence_H(s_A, s_B):
                                         right = single_type_rectangle(old_i - rooks_left, delta_j - r_T, r_L)
                                         sum += H_tmp * bottom * corner * right
                         values[knot_index, num_rooks, k_W, k_L] = sum
-    for k_W in range(num_rooks + 1):
-        for k_L in range(num_rooks + 1 - k_W):
-            sum = 0
-            for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
-                for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
-                    for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
-                        if (r_L + r_W + r_T <= num_rooks):
-                            rooks_left = num_rooks - r_W - r_T - r_L
-                            H_tmp = values[knot_index - 1, rooks_left, k_W - r_W, k_L - r_L]
-                            bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
-                            corner = single_type_rectangle(delta_i - r_W, delta_j, r_T)
-                            right = single_type_rectangle(old_i - rooks_left, delta_j - r_T, r_L)
-                            sum += H_tmp * bottom * corner * right
-            values[knot_index, num_rooks, k_W, k_L] = sum
     return values
 
 
