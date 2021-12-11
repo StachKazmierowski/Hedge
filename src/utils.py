@@ -3,6 +3,7 @@ import pandas as pd
 from itertools import permutations
 import math
 import scipy.special
+import concurrent.futures
 
 def next_divide(divide):
     n = divide.shape[1]
@@ -120,7 +121,6 @@ def recurrence_H(s_A, s_B):
     knots = find_knots(L, T)
     values = np.zeros((knots.shape[0], fields_number + 1, fields_number + 1, fields_number + 1))  #knot index, number of rooks, k_W, k_L
     values[:,0,0,0] = 1
-
     # first knot, we know it exists
     knot = knots[0]
     i = knot[0]
@@ -134,7 +134,6 @@ def recurrence_H(s_A, s_B):
     else:  # first area in W
         for num_rooks in range(min(i, j) + 1):
             values[0, num_rooks, num_rooks, 0] = single_type_rectangle(i, j, num_rooks)
-
     for knot_index in range(1, knots.shape[0]-1):
         knot = knots[knot_index]
         i = knot[0]
@@ -218,6 +217,17 @@ def symmetrized_payoff(s_A, s_B, aggregation_function):
     result /= math.factorial(fields_number)
     return result
 
+def symmetrized_payoff_parralel(pack):
+    i, j, s_A, s_B, aggregation_function = pack
+    fields_number = s_A.shape[0]
+    h = recurrence_H(s_A, s_B)[-1,-1,:,:]
+    result = 0
+    for k_W in range(h.shape[0]):
+        for k_L in range(h.shape[1]):
+            result += h[k_W, k_L] * aggregation_function(k_W, k_L, fields_number)
+    result /= math.factorial(fields_number)
+    return i, j, result
+
 def payoff_matrix_pandas(A, B, fields_number, aggregation_function):
     A_strategies = divides(A, fields_number)
     B_strategies = divides(B, fields_number)
@@ -225,14 +235,30 @@ def payoff_matrix_pandas(A, B, fields_number, aggregation_function):
     for A_index in range(A_strategies.shape[0]):
         for B_index in range(B_strategies.shape[0]):
             matrix[A_index, B_index] = symmetrized_payoff(A_strategies[A_index], B_strategies[B_index], aggregation_function)
+    columns_names, rows_names = get_columns_and_rows_names(A_strategies, B_strategies)
+    matrix = pd.DataFrame(matrix, columns=columns_names, index=rows_names)
+    return matrix
+
+def payoff_matrix_pandas_multithreading(A, B, fields_number, aggregation_function, threads_number=None):
+    A_strategies = divides(A, fields_number)
+    B_strategies = divides(B, fields_number)
+    matrix = np.zeros((A_strategies.shape[0], B_strategies.shape[0]))
+    args = ((i, j, A_strategies[i], B_strategies[j], aggregation_function) for i in range(A_strategies.shape[0]) for j in range(B_strategies.shape[0]))
+    with concurrent.futures.ProcessPoolExecutor(max_workers=threads_number) as executor:
+        for A_index, B_index, val in executor.map(symmetrized_payoff_parralel, args):
+            matrix[A_index, B_index] = val
+    columns_names, rows_names = get_columns_and_rows_names(A_strategies, B_strategies)
+    matrix = pd.DataFrame(matrix, columns=columns_names, index=rows_names)
+    return matrix
+
+def get_columns_and_rows_names(A_strategies, B_strategies):
     columns_names = []
     rows_names = []
     for i in range(A_strategies.shape[0]):
         rows_names.append(str(A_strategies[i]))
     for i in range(B_strategies.shape[0]):
         columns_names.append(str(B_strategies[i]))
-    matrix = pd.DataFrame(matrix, columns=columns_names, index=rows_names)
-    return matrix
+    return columns_names, rows_names
 
 def blotto(k_W, k_L, n):
     return k_W - k_L
@@ -251,35 +277,3 @@ def majoritarian(k_W, k_L, n):
     if(k_L > n/2):
         return -1
     return 0
-
-print(payoff_matrix_pandas(10, 10, 5, blotto))
-
-
-
-#%%
-def test_H(A, n):
-    strats = divides(A,n)
-    errors = 0
-    tries = 0
-    for i in range(strats.shape[0]):
-        for j in range(strats.shape[0]):
-            tries += 1
-            mock_A = strats[i]
-            mock_B = strats[j]
-            if(not np.all(recurrence_H(mock_A, mock_B)[-1,-1,:,:] == h(mock_A, mock_B))):
-                errors += 1
-                print("===================")
-                print(mock_A, mock_B)
-                print(clash_matrix(mock_A, mock_B))
-    print("Number of errors", errors, "on", tries, "tries")
-test_H(10, 4)
-#%%
-
-def test_knots(A, n):
-    strats = divides(A, n)
-    for i in range(strats.shape[0]):
-        for j in range(strats.shape[0]):
-            mock_A = strats[i]
-            mock_B = strats[j]
-            clash_mat = clash_matrix(mock_A, mock_B)
-            L, T = find_L_and_T(clash_mat)
