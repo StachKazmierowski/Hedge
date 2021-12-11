@@ -134,7 +134,7 @@ def recurrence_H(s_A, s_B):
         for num_rooks in range(min(i, j) + 1):
             values[0, num_rooks, num_rooks, 0] = single_type_rectangle(i, j, num_rooks)
 
-    for knot_index in range(1, knots.shape[0]):
+    for knot_index in range(1, knots.shape[0]-1):
         knot = knots[knot_index]
         i = knot[0]
         j = knot[1]
@@ -179,6 +179,32 @@ def recurrence_H(s_A, s_B):
                                         right = single_type_rectangle(old_i - rooks_left, delta_j - r_T, r_L)
                                         sum += H_tmp * bottom * corner * right
                         values[knot_index, num_rooks, k_W, k_L] = sum
+    # last knot
+    if(knots.shape[0] > 1):
+        i = fields_number
+        j = fields_number
+        old_knot = knots[-2]
+        old_i, old_j = old_knot
+        delta_i = i - old_i
+        delta_j = j - old_j
+        maximum_rooks_in_L = min(old_i, delta_j)
+        maximum_rooks_in_T = min(delta_i, delta_j)
+        maximum_rooks_in_W = min(delta_i, old_j)
+        num_rooks = fields_number
+        for k_W in range(num_rooks + 1):
+            for k_L in range(num_rooks + 1 - k_W):
+                sum = 0
+                for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
+                    for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
+                        for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
+                            if (r_L + r_W + r_T <= num_rooks):
+                                rooks_left = num_rooks - r_W - r_T - r_L
+                                H_tmp = values[-2, rooks_left, k_W - r_W, k_L - r_L]
+                                bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
+                                corner = single_type_rectangle(delta_i - r_W, delta_j, r_T)
+                                right = single_type_rectangle(old_i - rooks_left, delta_j - r_T, r_L)
+                                sum += H_tmp * bottom * corner * right
+                values[-1, num_rooks, k_W, k_L] = sum
     return values
 
 
