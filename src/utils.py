@@ -202,9 +202,9 @@ def recurrence_H(s_A, s_B):
         for k_W in range(num_rooks + 1):
             for k_L in range(num_rooks + 1 - k_W):
                 sum = 0
-                for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
+                for r_L in range(min(maximum_rooks_in_L, num_rooks, k_L) + 1):
                     for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
-                        for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
+                        for r_W in range(min(maximum_rooks_in_W, num_rooks, k_W) + 1):
                             rooks_left = num_rooks - r_W - r_T - r_L
                             if (rooks_left >= 0 and min_number_of_rooks(old_i, old_j, fields_number) <= rooks_left):
                                 H_tmp = values[-2, rooks_left, k_W - r_W, k_L - r_L]
@@ -236,13 +236,30 @@ def symmetrized_payoff_parralel(pack):
     result /= math.factorial(fields_number)
     return i, j, result
 
+def is_symmetric(aggregation_function, fields_number):
+    for i in range(fields_number + 1):
+        for j in range(fields_number - i + 1):
+            if(aggregation_function(i, j, fields_number) != -aggregation_function(j, i, fields_number)):
+                print(i, j)
+                print(aggregation_function(fields_number, i, j))
+                print(-aggregation_function(fields_number, j, i))
+                return False
+    return True
+
 def payoff_matrix_pandas(A, B, fields_number, aggregation_function):
     A_strategies = divides(A, fields_number)
     B_strategies = divides(B, fields_number)
     matrix = np.zeros((A_strategies.shape[0], B_strategies.shape[0]))
-    for A_index in range(A_strategies.shape[0]):
-        for B_index in range(B_strategies.shape[0]):
-            matrix[A_index, B_index] = symmetrized_payoff(A_strategies[A_index], B_strategies[B_index], aggregation_function)
+    if (A == B and is_symmetric(aggregation_function, fields_number)):
+        for A_index in range(1, A_strategies.shape[0]):
+            for B_index in range(A_index + 1, A_strategies.shape[0]):
+                val = symmetrized_payoff(A_strategies[A_index], B_strategies[B_index], aggregation_function)
+                matrix[A_index, B_index] = val
+                matrix[B_index, A_index] = -val
+    else:
+        for A_index in range(A_strategies.shape[0]):
+            for B_index in range(B_strategies.shape[0]):
+                matrix[A_index, B_index] = symmetrized_payoff(A_strategies[A_index], B_strategies[B_index], aggregation_function)
     columns_names, rows_names = get_columns_and_rows_names(A_strategies, B_strategies)
     matrix = pd.DataFrame(matrix, columns=columns_names, index=rows_names)
     return matrix
@@ -251,10 +268,17 @@ def payoff_matrix_pandas_multithreading(A, B, fields_number, aggregation_functio
     A_strategies = divides(A, fields_number)
     B_strategies = divides(B, fields_number)
     matrix = np.zeros((A_strategies.shape[0], B_strategies.shape[0]))
-    args = ((i, j, A_strategies[i], B_strategies[j], aggregation_function) for i in range(A_strategies.shape[0]) for j in range(B_strategies.shape[0]))
-    with concurrent.futures.ProcessPoolExecutor(max_workers=threads_number) as executor:
-        for A_index, B_index, val in executor.map(symmetrized_payoff_parralel, args):
-            matrix[A_index, B_index] = val
+    if (A == B and is_symmetric(aggregation_function, fields_number)):
+        args = ((i, j, A_strategies[i], B_strategies[j], aggregation_function) for i in range(1, A_strategies.shape[0]) for j in range(i + 1, B_strategies.shape[0]))
+        with concurrent.futures.ProcessPoolExecutor(max_workers=threads_number) as executor:
+            for A_index, B_index, val in executor.map(symmetrized_payoff_parralel, args):
+                matrix[A_index, B_index] = val
+                matrix[B_index, A_index] = -val
+    else:
+        args = ((i, j, A_strategies[i], B_strategies[j], aggregation_function) for i in range(A_strategies.shape[0]) for j in range(B_strategies.shape[0]))
+        with concurrent.futures.ProcessPoolExecutor(max_workers=threads_number) as executor:
+            for A_index, B_index, val in executor.map(symmetrized_payoff_parralel, args):
+                matrix[A_index, B_index] = val
     columns_names, rows_names = get_columns_and_rows_names(A_strategies, B_strategies)
     matrix = pd.DataFrame(matrix, columns=columns_names, index=rows_names)
     return matrix
@@ -285,3 +309,11 @@ def majoritarian(k_W, k_L, n):
     if(k_L > n/2):
         return -1
     return 0
+
+# print(blotto(0,0,5))
+# # print(is_symmetric(attack, 5))
+# print(payoff_matrix_pandas(10,10,5,blotto).to_numpy()[1:, 1:] - payoff_matrix_pandas_multithreading(10,10,5,blotto).to_numpy()[1:, 1:])
+# print("=================================")
+# print(payoff_matrix_pandas(10,10,5,blotto).to_numpy())
+# print("=================================")
+# print(payoff_matrix_pandas_multithreading(10,10,5,blotto).to_numpy())
