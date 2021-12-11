@@ -114,6 +114,14 @@ def single_type_rectangle(cols_num, rows_num, rooks_num):
         return 0
     return newton_symbol(rows_num, rooks_num) * newton_symbol(cols_num, rooks_num) * math.factorial(rooks_num)
 
+def min_number_of_rooks(i, j, n):
+    delta_i = n - i
+    delta_j = n - j
+    r_1 = min(delta_i, j)
+    r_3 = min(i, delta_j)
+    r_2 = min(delta_i - r_1, delta_j - r_3)
+    return n - (r_1 + r_2 + r_3)
+
 def recurrence_H(s_A, s_B):
     fields_number = s_A.shape[0]
     clash_mat = clash_matrix(s_A, s_B)
@@ -164,7 +172,7 @@ def recurrence_H(s_A, s_B):
             maximum_rooks_in_L = min(old_i, delta_j)
             maximum_rooks_in_T = min(delta_i, delta_j)
             maximum_rooks_in_W = min(delta_i, old_j)
-            for num_rooks in range(min(i, j) + 1):
+            for num_rooks in range(min_number_of_rooks(i, j, fields_number), min(i, j) + 1):
                 for k_W in range(num_rooks + 1):
                     for k_L in range(num_rooks + 1 - k_W):
                         sum = 0
@@ -197,8 +205,8 @@ def recurrence_H(s_A, s_B):
                 for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
                     for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
                         for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
-                            if (r_L + r_W + r_T <= num_rooks):
-                                rooks_left = num_rooks - r_W - r_T - r_L
+                            rooks_left = num_rooks - r_W - r_T - r_L
+                            if (rooks_left >= 0 and min_number_of_rooks(old_i, old_j, fields_number) <= rooks_left):
                                 H_tmp = values[-2, rooks_left, k_W - r_W, k_L - r_L]
                                 bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
                                 corner = single_type_rectangle(delta_i - r_W, delta_j, r_T)
