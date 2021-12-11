@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import recurrence_H, divides, clash_matrix, payoff_matrix_pandas, \
+from utils import recurrence_H, h, divides, clash_matrix, payoff_matrix_pandas, \
     payoff_matrix_pandas_multithreading, blotto, majoritarian, chopstick, attack
 
 #%%
@@ -32,6 +32,6 @@ def test_payoff_matrix_time_multithreading(A, B, n, aggregation, threads_number=
     matrix = payoff_matrix_pandas_multithreading(A, B, n, aggregation, threads_number)
     print(time.time() - start)
 
-test_payoff_matrix_time(10,10,5,chopstick)
-test_payoff_matrix_time_multithreading(10,10,5,chopstick,1)
-test_payoff_matrix_time_multithreading(10,10,5,chopstick)
+# test_payoff_matrix_time(10,10,5,chopstick)
+# test_payoff_matrix_time_multithreading(10,10,5,chopstick,1)
+test_payoff_matrix_time_multithreading(15,15,10,chopstick)
