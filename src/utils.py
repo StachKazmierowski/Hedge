@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import pandas as pd
 from itertools import permutations
@@ -114,7 +115,7 @@ def single_type_rectangle(cols_num, rows_num, rooks_num):
         return 0
     return newton_symbol(rows_num, rooks_num) * newton_symbol(cols_num, rooks_num) * math.factorial(rooks_num)
 
-def min_number_of_rooks(i, j, n):
+def min_number_of_rooks(i, j, n): # the minimal number of rooks in rectanle (i,j) inside nxn matrix
     delta_i = n - i
     delta_j = n - j
     r_1 = min(delta_i, j)
@@ -181,7 +182,6 @@ def recurrence_H(s_A, s_B):
                                 for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
                                     rooks_left = num_rooks - r_W - r_T - r_L
                                     if (rooks_left >= 0 and min_number_of_rooks(old_i, old_j, fields_number) <= rooks_left):
-                                        rooks_left = num_rooks - r_W - r_T - r_L
                                         H_tmp = values[knot_index - 1, rooks_left, k_W - r_W, k_L-r_L]
                                         bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
                                         corner = single_type_rectangle(delta_i - r_W, delta_j, r_T)
@@ -328,7 +328,14 @@ def test_H(A, n):
                 print(clash_matrix(mock_A, mock_B))
     print("Number of errors", errors, "on", tries, "tries")
 test_H(10, 4)
-
+# mock_A = np.array([6, 3, 3 , 2, 1])
+# mock_B = numpy.array([5,4,2 , 2, 2 ])
+# clash_mat = clash_matrix(mock_A, mock_B)
+# print(clash_mat)
+# L, T = find_L_and_T(clash_mat)
+# print(find_knots(L, T))
+# print(recurrence_H(mock_A, mock_B)[-1,-1])
+# print(h(np.array([5, 4, 3 , 2, 1]), numpy.array([6, 3, 2 , 2, 2 ])))
 # print(blotto(0,0,5))
 # # print(is_symmetric(attack, 5))
 # print(payoff_matrix_pandas(10,10,5,blotto).to_numpy()[1:, 1:] - payoff_matrix_pandas_multithreading(10,10,5,blotto).to_numpy()[1:, 1:])
