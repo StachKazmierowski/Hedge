@@ -179,7 +179,8 @@ def recurrence_H(s_A, s_B):
                         for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
                             for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
                                 for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
-                                    if(r_L + r_W + r_T <= num_rooks):
+                                    rooks_left = num_rooks - r_W - r_T - r_L
+                                    if (rooks_left >= 0 and min_number_of_rooks(old_i, old_j, fields_number) <= rooks_left):
                                         rooks_left = num_rooks - r_W - r_T - r_L
                                         H_tmp = values[knot_index - 1, rooks_left, k_W - r_W, k_L-r_L]
                                         bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
@@ -309,6 +310,24 @@ def majoritarian(k_W, k_L, n):
     if(k_L > n/2):
         return -1
     return 0
+
+
+def test_H(A, n):
+    strats = divides(A,n)
+    errors = 0
+    tries = 0
+    for i in range(strats.shape[0]):
+        for j in range(strats.shape[0]):
+            tries += 1
+            mock_A = strats[i]
+            mock_B = strats[j]
+            if(not np.all(recurrence_H(mock_A, mock_B)[-1,-1,:,:] == h(mock_A, mock_B))):
+                errors += 1
+                print("===================")
+                print(mock_A, mock_B)
+                print(clash_matrix(mock_A, mock_B))
+    print("Number of errors", errors, "on", tries, "tries")
+test_H(10, 4)
 
 # print(blotto(0,0,5))
 # # print(is_symmetric(attack, 5))
