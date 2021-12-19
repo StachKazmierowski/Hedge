@@ -55,6 +55,16 @@ def h(s_A, s_B): #Subsequent rows denote number of battlefields won by A, column
     values *= (math.factorial(fields_number) / values.sum())
     return values
 
+def h_chopstick(s_A, s_B): #Subsequent rows denote number of battlefields won by A, columns denobe the same for B
+    fields_number = s_A.shape[0]
+    values = np.zeros((2 * fields_number +1))
+    s_B_permutations = np.array(list(set(permutations(s_B.tolist()))))
+    for i in range(s_B_permutations.shape[0]):
+        k_W, k_L = k_W_and_k_L(s_A, s_B_permutations[i])
+        values[fields_number + k_W - k_L] += 1
+    values *= (math.factorial(fields_number) / values.sum())
+    return values
+
 def find_L_and_T(clash_matrix):
     fields_number = clash_matrix.shape[0]
     L = np.zeros((fields_number))
@@ -216,6 +226,96 @@ def recurrence_H(s_A, s_B):
                 values[-1, num_rooks, k_W, k_L] = sum
     return values
 
+def recurrence_H_chopstick(s_A, s_B):
+    fields_number = s_A.shape[0]
+    clash_mat = clash_matrix(s_A, s_B)
+    L,T = find_L_and_T(clash_mat)
+    knots = find_knots(L, T)
+    values = np.zeros((knots.shape[0], fields_number + 1, 2 * fields_number + 1))  #knot index, number of rooks, k_W - k_L
+    values[:,0,fields_number] = 1
+    # first knot, we know it exists
+    knot = knots[0]
+    i = knot[0]
+    j = knot[1]
+    if (L[0] > 0):  # first area in L
+        for num_rooks in range(min(i, j) + 1):
+            values[0, num_rooks, fields_number - num_rooks] = single_type_rectangle(i, j, num_rooks)
+    elif (T[0] > 0):  # first area in T
+        for num_rooks in range(min(i, j) + 1):
+            values[0, num_rooks, fields_number] = single_type_rectangle(i, j, num_rooks)
+    else:  # first area in W
+        for num_rooks in range(min(i, j) + 1):
+            values[0, num_rooks, fields_number + num_rooks] = single_type_rectangle(i, j, num_rooks)
+    for knot_index in range(1, knots.shape[0] - 1):
+        knot = knots[knot_index]
+        i = knot[0]
+        j = knot[1]
+        previous_knot = knots[knot_index-1]
+        old_i = previous_knot[0]
+        old_j = previous_knot[1]
+        delta_i = i - old_i
+        delta_j = j - old_j
+        if(knot_index == 1 and L[0] > 0 and T[0] > 0): # L and T stripes
+            maximum_rooks_in_T = min(delta_i, j)
+            for num_rooks in range(min(i, j) + 1):
+                for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
+                    rooks_left = num_rooks - r_T
+                    H_tmp = values[0, rooks_left, fields_number - rooks_left]
+                    bottom = single_type_rectangle(delta_i, j - rooks_left, r_T)
+                    values[knot_index, num_rooks, fields_number - rooks_left] = H_tmp * bottom
+        elif(knot_index == 1 and T[0] == 0 and T[j-1] > 0 and np.all(L[:j]==0)): # T and W stripes
+            maximum_rooks_in_T = min(i, delta_j)
+            for num_rooks in range(min(i, j) + 1):
+                for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
+                    rooks_left = num_rooks - r_T
+                    H_tmp = values[0, rooks_left, fields_number + rooks_left]
+                    right = single_type_rectangle(i - rooks_left, delta_j, r_T)
+                    values[knot_index, num_rooks, fields_number + rooks_left] = H_tmp * right
+        else:
+            maximum_rooks_in_L = min(old_i, delta_j)
+            maximum_rooks_in_T = min(delta_i, delta_j)
+            maximum_rooks_in_W = min(delta_i, old_j)
+            for num_rooks in range(min_number_of_rooks(i, j, fields_number), min(i, j) + 1):
+                for result in range(-num_rooks, num_rooks + 1):
+                    sum = 0
+                    for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
+                        for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
+                            for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
+                                rooks_left = num_rooks - r_W - r_T - r_L
+                                if (rooks_left >= 0 and min_number_of_rooks(old_i, old_j, fields_number) <= rooks_left and result - r_W + r_L < fields_number):
+                                    H_tmp = values[knot_index - 1, rooks_left, fields_number + result - r_W + r_L]
+                                    bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
+                                    corner = single_type_rectangle(delta_i - r_W, delta_j, r_T)
+                                    right = single_type_rectangle(old_i - rooks_left, delta_j - r_T, r_L)
+                                    sum += H_tmp * bottom * corner * right
+                    values[knot_index, num_rooks, fields_number + result] = sum
+    # last knot
+    if(knots.shape[0] > 1):
+        i = fields_number
+        j = fields_number
+        old_knot = knots[-2]
+        old_i, old_j = old_knot
+        delta_i = i - old_i
+        delta_j = j - old_j
+        maximum_rooks_in_L = min(old_i, delta_j)
+        maximum_rooks_in_T = min(delta_i, delta_j)
+        maximum_rooks_in_W = min(delta_i, old_j)
+        num_rooks = fields_number
+        for result in range(-num_rooks, num_rooks + 1):
+            sum = 0
+            for r_L in range(min(maximum_rooks_in_L, num_rooks) + 1):
+                for r_T in range(min(maximum_rooks_in_T, num_rooks) + 1):
+                    for r_W in range(min(maximum_rooks_in_W, num_rooks) + 1):
+                        rooks_left = num_rooks - r_W - r_T - r_L
+                        if (rooks_left >= 0 and min_number_of_rooks(old_i, old_j, fields_number) <= rooks_left and result - r_W + r_L < fields_number):
+                            H_tmp = values[-2, rooks_left, fields_number + result - r_W + r_L]
+                            bottom = single_type_rectangle(delta_i, old_j - rooks_left, r_W)
+                            corner = single_type_rectangle(delta_i - r_W, delta_j, r_T)
+                            right = single_type_rectangle(old_i - rooks_left, delta_j - r_T, r_L)
+                            sum += H_tmp * bottom * corner * right
+            values[-1, num_rooks, fields_number + result] = sum
+    return values
+
 def symmetrized_payoff(s_A, s_B, aggregation_function):
     fields_number = s_A.shape[0]
     h = recurrence_H(s_A, s_B)[-1,-1,:,:]
@@ -327,9 +427,28 @@ def test_H(A, n):
                 print(mock_A, mock_B)
                 print(clash_matrix(mock_A, mock_B))
     print("Number of errors", errors, "on", tries, "tries")
-test_H(10, 4)
-# mock_A = np.array([6, 3, 3 , 2, 1])
-# mock_B = numpy.array([5,4,2 , 2, 2 ])
+
+def test_H_chopstick(A, n):
+    strats = divides(A,n)
+    errors = 0
+    tries = 0
+    for i in range(strats.shape[0]):
+        for j in range(strats.shape[0]):
+            tries += 1
+            mock_A = strats[i]
+            mock_B = strats[j]
+            if(not np.all(recurrence_H_chopstick(mock_A, mock_B)[-1,-1,:] == h_chopstick(mock_A, mock_B))):
+                errors += 1
+                print("===================")
+                print(mock_A, mock_B)
+                print(clash_matrix(mock_A, mock_B))
+    print("Number of errors", errors, "on", tries, "tries")
+test_H_chopstick(10, 4)
+# mock_A = np.array([2,2,2])
+# mock_B = numpy.array([2,2,2])
+# print(recurrence_H_chopstick(mock_A, mock_B)[-1, -1, :])
+# print(h_chopstick(mock_A, mock_B))
+# print(clash_matrix(mock_A, mock_B))
 # clash_mat = clash_matrix(mock_A, mock_B)
 # print(clash_mat)
 # L, T = find_L_and_T(clash_mat)
